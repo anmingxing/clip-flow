@@ -23,6 +23,8 @@ interface ClipboardListViewProps {
   selectedFilter: FilterTab;
   selectedIndex: number;
   hasAccessibilityPermission: boolean;
+  errorMessage: string | null;
+  onDismissError: () => void;
   isMac: boolean;
   searchInputRef: React.RefObject<HTMLInputElement>;
   onSearchChange: (value: string) => void;
@@ -41,6 +43,8 @@ export const ClipboardListView: React.FC<ClipboardListViewProps> = ({
   selectedFilter,
   selectedIndex,
   hasAccessibilityPermission,
+  errorMessage,
+  onDismissError,
   isMac,
   searchInputRef,
   onSearchChange,
@@ -141,6 +145,16 @@ export const ClipboardListView: React.FC<ClipboardListViewProps> = ({
               className="ml-auto px-2 py-0.5 rounded bg-orange-500 hover:bg-orange-600 text-white text-[10.5px] font-medium shrink-0"
             >
               去授权
+            </button>
+          </div>
+        )}
+
+        {errorMessage && (
+          <div role="alert" className="flex items-start gap-2 px-3.5 py-2 bg-red-500/10 text-red-700 dark:text-red-300 text-xs border-b border-red-500/20">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <span className="min-w-0 break-words">{errorMessage}</span>
+            <button type="button" onClick={onDismissError} aria-label="关闭错误提示" className="ml-auto shrink-0">
+              <XCircle className="w-3.5 h-3.5" />
             </button>
           </div>
         )}

@@ -86,6 +86,10 @@ export function onClipboardCleared(cb: () => void): Promise<UnlistenFn> {
   return listen("clipboard://cleared", () => cb());
 }
 
+export function onClipboardError(cb: (message: string) => void): Promise<UnlistenFn> {
+  return listen<string>("clipboard://error", (event) => cb(event.payload));
+}
+
 export function onWindowShown(cb: () => void): Promise<UnlistenFn> {
   return listen("window://shown", () => cb());
 }

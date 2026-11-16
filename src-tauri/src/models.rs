@@ -82,6 +82,9 @@ impl ClipItem {
         content_hash: Option<String>,
     ) -> Self {
         let computed_hash = content_hash.unwrap_or_else(|| {
+            if content_type == ClipContentType::RichText {
+                return Self::rich_text_hash(text.as_deref(), rich_text_data.as_deref());
+            }
             Self::calculate_hash(
                 content_type,
                 text.as_deref(),
@@ -130,6 +133,16 @@ impl ClipItem {
         hasher.update(bytes);
         let digest = hasher.finalize();
         digest.iter().map(|b| format!("{:02x}", b)).collect()
+    }
+
+    pub fn rich_text_hash(text: Option<&str>, rtf: Option<&[u8]>) -> String {
+        // Length-prefix fields so boundaries cannot collide with RTF bytes.
+        let text = text.unwrap_or_default().as_bytes();
+        let mut raw = b"richText:".to_vec();
+        raw.extend_from_slice(&(text.len() as u64).to_le_bytes());
+        raw.extend_from_slice(text);
+        raw.extend_from_slice(rtf.unwrap_or_default());
+        Self::sha256_hex(&raw)
     }
 
     pub fn rich_text_bytes(&self) -> Option<Vec<u8>> {

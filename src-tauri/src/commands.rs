@@ -11,9 +11,12 @@ pub fn get_history(
     pinned_only: bool,
     limit: Option<usize>,
 ) -> Vec<ClipItem> {
-    state
-        .storage
-        .fetch_history(query.as_deref(), content_type, pinned_only, limit.unwrap_or(100))
+    state.storage.fetch_history(
+        query.as_deref(),
+        content_type,
+        pinned_only,
+        limit.unwrap_or(100),
+    )
 }
 
 #[tauri::command]
@@ -45,18 +48,18 @@ pub fn copy_text(state: State<'_, AppState>, text: String) -> Result<(), String>
 }
 
 #[tauri::command]
-pub fn toggle_pin(state: State<'_, AppState>, id: String) -> bool {
+pub fn toggle_pin(state: State<'_, AppState>, id: String) -> Result<bool, String> {
     state.storage.toggle_pin(&id)
 }
 
 #[tauri::command]
-pub fn delete_item(state: State<'_, AppState>, id: String) -> bool {
+pub fn delete_item(state: State<'_, AppState>, id: String) -> Result<bool, String> {
     state.storage.delete(&id)
 }
 
 #[tauri::command]
-pub fn clear_unpinned(state: State<'_, AppState>) {
-    state.storage.clear_unpinned();
+pub fn clear_unpinned(state: State<'_, AppState>) -> Result<(), String> {
+    state.storage.clear_unpinned()
 }
 
 #[tauri::command]

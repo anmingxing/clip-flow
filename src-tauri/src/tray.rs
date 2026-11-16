@@ -1,4 +1,4 @@
-use crate::{platform, toggle_main_window, show_main_window, AppState};
+use crate::{platform, show_main_window, toggle_main_window, AppState};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, CheckMenuItemBuilder, MenuBuilder, MenuItem, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -99,7 +99,11 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             }
             "clear_unpinned" => {
                 let state = app.state::<AppState>();
-                state.storage.clear_unpinned();
+                if let Err(err) = state.storage.clear_unpinned() {
+                    eprintln!("[Tray] {err}");
+                    let _ = app.emit("clipboard://error", &err);
+                    return;
+                }
                 if let Some(handles) = app.try_state::<TrayHandles>() {
                     handles.refresh(app);
                 }

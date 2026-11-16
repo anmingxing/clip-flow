@@ -8,6 +8,7 @@ import {
   hideWindow,
   isMacOS,
   onClipboardCleared,
+  onClipboardError,
   onClipboardUpdated,
   onWindowShown,
   pasteItem,
@@ -43,6 +44,7 @@ export default function App() {
   const [selectedFilter, setSelectedFilter] = useState<FilterTab>("all");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [hasAccessibilityPermission, setHasAccessibilityPermission] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isMac = useMemo(() => isMacOS(), []);
@@ -57,17 +59,21 @@ export default function App() {
   const reloadItems = useCallback(
     async (resetIndex = false) => {
       const { contentType, pinnedOnly } = filterToQueryParams(selectedFilter);
-      const fetched = await fetchHistory({
-        query: debouncedSearch,
-        contentType,
-        pinnedOnly,
-        limit: 100,
-      });
-      setItems(fetched);
-      setSelectedIndex((prev) => {
-        if (resetIndex || fetched.length === 0) return 0;
-        return Math.min(prev, fetched.length - 1);
-      });
+      try {
+        const fetched = await fetchHistory({
+          query: debouncedSearch,
+          contentType,
+          pinnedOnly,
+          limit: 100,
+        });
+        setItems(fetched);
+        setSelectedIndex((prev) => {
+          if (resetIndex || fetched.length === 0) return 0;
+          return Math.min(prev, fetched.length - 1);
+        });
+      } catch (error) {
+        setErrorMessage(String(error));
+      }
     },
     [debouncedSearch, selectedFilter]
   );
@@ -85,49 +91,62 @@ export default function App() {
     refreshPermission();
     searchInputRef.current?.focus();
 
-    let unlistenUpdated: (() => void) | undefined;
-    let unlistenCleared: (() => void) | undefined;
-    let unlistenShown: (() => void) | undefined;
+    let disposed = false;
+    const unlisteners: (() => void)[] = [];
+    const subscribe = (listener: Promise<() => void>) => {
+      listener
+        .then((fn) => {
+          if (disposed) fn();
+          else unlisteners.push(fn);
+        })
+        .catch((error) => {
+          if (!disposed) setErrorMessage(String(error));
+        });
+    };
 
-    onClipboardUpdated(() => {
+    subscribe(onClipboardUpdated(() => {
       reloadItems(false);
-    }).then((fn) => {
-      unlistenUpdated = fn;
-    });
+    }));
 
-    onClipboardCleared(() => {
+    subscribe(onClipboardCleared(() => {
       reloadItems(true);
-    }).then((fn) => {
-      unlistenCleared = fn;
-    });
+    }));
 
-    onWindowShown(() => {
+    subscribe(onClipboardError(setErrorMessage));
+
+    subscribe(onWindowShown(() => {
       refreshPermission();
       reloadItems(true);
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 30);
-    }).then((fn) => {
-      unlistenShown = fn;
-    });
+    }));
 
     return () => {
-      unlistenUpdated?.();
-      unlistenCleared?.();
-      unlistenShown?.();
+      disposed = true;
+      unlisteners.forEach((fn) => fn());
     };
   }, [reloadItems, refreshPermission]);
 
   const handlePaste = useCallback(async (item: ClipItem, plainTextOnly = false) => {
-    await pasteItem(item.id, plainTextOnly, true);
+    try {
+      setErrorMessage(null);
+      await pasteItem(item.id, plainTextOnly, true);
+    } catch (error) {
+      setErrorMessage(String(error));
+    }
   }, []);
 
   const handleTogglePinAt = useCallback(
     async (index: number) => {
       const target = items[index];
       if (!target) return;
-      await togglePin(target.id);
-      await reloadItems(false);
+      try {
+        await togglePin(target.id);
+        await reloadItems(false);
+      } catch (error) {
+        setErrorMessage(String(error));
+      }
     },
     [items, reloadItems]
   );
@@ -136,15 +155,23 @@ export default function App() {
     async (index: number) => {
       const target = items[index];
       if (!target) return;
-      await deleteItem(target.id);
-      await reloadItems(false);
+      try {
+        await deleteItem(target.id);
+        await reloadItems(false);
+      } catch (error) {
+        setErrorMessage(String(error));
+      }
     },
     [items, reloadItems]
   );
 
   const handleClearUnpinned = useCallback(async () => {
-    await clearUnpinned();
-    await reloadItems(true);
+    try {
+      await clearUnpinned();
+      await reloadItems(true);
+    } catch (error) {
+      setErrorMessage(String(error));
+    }
   }, [reloadItems]);
 
   const cycleFilterTab = useCallback((forward: boolean) => {
@@ -259,6 +286,8 @@ export default function App() {
       selectedFilter={selectedFilter}
       selectedIndex={selectedIndex}
       hasAccessibilityPermission={hasAccessibilityPermission}
+      errorMessage={errorMessage}
+      onDismissError={() => setErrorMessage(null)}
       isMac={isMac}
       searchInputRef={searchInputRef}
       onSearchChange={setSearchText}

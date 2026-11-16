@@ -144,8 +144,15 @@ impl ClipboardMonitor {
                             continue;
                         }
 
-                        let saved = monitor.storage.save(item);
-                        let _ = app_handle.emit("clipboard://updated", &saved);
+                        match monitor.storage.save(item) {
+                            Ok(saved) => {
+                                let _ = app_handle.emit("clipboard://updated", &saved);
+                            }
+                            Err(err) => {
+                                eprintln!("[ClipboardMonitor] {err}");
+                                let _ = app_handle.emit("clipboard://error", &err);
+                            }
+                        }
                     }
                 }
             });
@@ -191,7 +198,8 @@ impl ClipboardMonitor {
                     return None;
                 }
                 let raw_bytes = img.bytes.into_owned();
-                if let Some(rgba_img) = ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, raw_bytes)
+                if let Some(rgba_img) =
+                    ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, raw_bytes)
                 {
                     let mut png_bytes = Vec::new();
                     if rgba_img
