@@ -188,6 +188,10 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // Enter/Escape/arrows may belong to an IME candidate window. Safari can
+      // report isComposing=false on the final Enter, but still sets keyCode=229.
+      if (e.isComposing || e.keyCode === 229) return;
+
       const primaryMod = isMac ? e.metaKey : e.ctrlKey;
       const keyLower = e.key.toLowerCase();
 
