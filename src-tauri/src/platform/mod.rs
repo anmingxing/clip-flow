@@ -19,6 +19,11 @@ pub fn is_self_app(app: &FrontmostAppInfo) -> bool {
     false
 }
 
+#[cfg(any(target_os = "windows", target_os = "linux", test))]
+mod file_paths;
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+mod native_clipboard;
+
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]

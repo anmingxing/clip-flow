@@ -82,17 +82,7 @@ pub fn is_clipboard_concealed() -> bool {
     }
 }
 
-pub fn read_platform_files_and_rtf() -> (Option<Vec<String>>, Option<Vec<u8>>) {
-    (None, None)
-}
-
-pub fn write_platform_files_and_rtf(
-    _files: Option<&[String]>,
-    _rtf: Option<&[u8]>,
-    _text: Option<&str>,
-) -> bool {
-    false
-}
+pub use super::native_clipboard::{read_platform_files_and_rtf, write_platform_files_and_rtf};
 
 pub fn is_accessibility_trusted(_prompt: bool) -> bool {
     true

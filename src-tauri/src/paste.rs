@@ -125,13 +125,7 @@ fn write_item_to_clipboard(
                     item.text.as_deref(),
                 );
                 if !wrote_native {
-                    if let Some(ref text) = item.text {
-                        let mut clipboard =
-                            Clipboard::new().map_err(|e| format!("Clipboard init failed: {e}"))?;
-                        clipboard
-                            .set_text(text.clone())
-                            .map_err(|e| format!("Failed to write text fallback: {e}"))?;
-                    }
+                    return Err("无法写入富文本剪贴板，请重试或使用 Shift+Enter 粘贴纯文本".into());
                 }
             }
         }
@@ -160,11 +154,7 @@ fn write_item_to_clipboard(
             if let Some(ref paths) = item.file_paths {
                 let wrote_native = platform::write_platform_files_and_rtf(Some(paths), None, None);
                 if !wrote_native {
-                    let mut clipboard =
-                        Clipboard::new().map_err(|e| format!("Clipboard init failed: {e}"))?;
-                    clipboard
-                        .set_text(paths.join("\n"))
-                        .map_err(|e| format!("Failed to write file paths: {e}"))?;
+                    return Err("无法写入文件剪贴板，请重试".into());
                 }
             }
         }

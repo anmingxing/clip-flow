@@ -24,9 +24,13 @@ chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"
 base64 = "0.22"
 regex = "1"
-arboard = "3.4"
+arboard = { version = "3.4", features = ["wayland-data-control"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 dirs = "5"
+url = "2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+clipboard-rs = { version = "0.3.5", default-features = false, features = ["wayland"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"
@@ -34,6 +38,7 @@ cocoa = "0.26"
 core-foundation = "0.10"
 
 [target.'cfg(target_os = "windows")'.dependencies]
+clipboard-rs = { version = "0.3.5", default-features = false }
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
