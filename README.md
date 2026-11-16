@@ -75,7 +75,7 @@ clip-flow/
 ## 🚀 开发与构建
 
 ### 环境依赖
-- **Node.js** >= 18 & **npm**
+- **Node.js** 20.19+ 或 22.12+ & **npm**
 - **Rust** stable 工具链 (`rustc` / `cargo`)
 - **Linux 额外依赖**：构建需要 `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`；运行期自动粘贴依赖 `xdotool`。
 
@@ -92,6 +92,7 @@ npm run tauri dev
 ### 3. 运行测试与编译检查
 ```bash
 npm run build
+npm test
 cd src-tauri && cargo test
 ```
 
