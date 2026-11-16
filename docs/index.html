@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClipFlow - 轻量优雅且功能强大的跨平台剪切板历史管理工具</title>
+  <meta name="description" content="ClipFlow 是一款支持 macOS、Windows 与 Linux 的轻量级跨平台剪切板管理器。基于 Rust & Tauri v2 + React 构建，毫秒级响应，支持全局快捷键、全键盘驱动、多格式深度预览与密码防泄密。">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            macBg: '#0f1117',
+            macCard: 'rgba(28, 31, 43, 0.7)',
+            macBorder: 'rgba(255, 255, 255, 0.08)',
+            appleBlue: '#0A84FF',
+            applePurple: '#BF5AF2',
+            appleOrange: '#FF9F0A'
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Segoe UI"', 'Roboto', 'sans-serif'],
+            mono: ['"SF Mono"', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    /* 毛玻璃与光晕特效 */
+    .glass-panel {
+      background: rgba(26, 29, 41, 0.75);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .hero-glow {
+      background: radial-gradient(circle 500px at 50% 30%, rgba(10, 132, 255, 0.18), rgba(191, 90, 242, 0.08), transparent 70%);
+    }
+    .kbd-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.1rem 0.35rem;
+      font-size: 0.7rem;
+      font-family: "SF Mono", Menlo, monospace;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 0.3rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body class="bg-macBg text-slate-100 font-sans antialiased selection:bg-appleBlue selection:text-white">
+
+  <!-- 顶部导航栏 -->
+  <header class="fixed top-0 left-0 right-0 z-50 glass-panel border-b border-macBorder">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="#" class="flex items-center space-x-3 group">
+        <img src="assets/app-icon.png" alt="ClipFlow Icon" class="w-9 h-9 rounded-xl shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform object-cover" />
+        <span class="text-xl font-bold tracking-tight text-white">ClipFlow</span>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-appleBlue/20 text-blue-400 font-medium border border-appleBlue/30">Rust + Tauri v2</span>
+      </a>
+
+      <nav class="hidden md:flex items-center space-x-8 text-sm text-slate-300 font-medium">
+        <a href="#features" class="hover:text-white transition">功能特性</a>
+        <a href="#preview" class="hover:text-white transition">交互界面</a>
+        <a href="#shortcuts" class="hover:text-white transition">快捷键流</a>
+        <a href="#faq" class="hover:text-white transition">常见问题</a>
+        <a href="#privacy" class="hover:text-white transition">隐私安全</a>
+      </nav>
+
+      <div class="flex items-center space-x-4">
+        <a href="https://github.com/anmingxing/clip-flow" target="_blank" class="text-slate-400 hover:text-white transition flex items-center space-x-1.5 text-sm font-medium">
+          <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span class="hidden sm:inline">Star</span>
+        </a>
+        <a id="nav-download-btn" href="https://github.com/anmingxing/clip-flow/releases" target="_blank" class="px-4 py-2 rounded-xl bg-appleBlue hover:bg-blue-600 text-white text-sm font-semibold shadow-lg shadow-blue-500/25 transition flex items-center space-x-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span id="nav-download-text">免费下载</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="relative pt-36 pb-20 overflow-hidden hero-glow">
+    <div class="max-w-5xl mx-auto px-6 text-center">
+      <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-slate-300 mb-8 backdrop-blur-md">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="hero-badge-version">ClipFlow 1.0 · 支持 macOS / Windows / Linux</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl font-extrabold text-white max-w-4xl mx-auto leading-snug sm:leading-[1.25]">
+        <span>为效率而生，为专注设计。</span>
+        <span class="block mt-4 sm:mt-5 pb-1 bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+          跨平台轻量级剪切板神器
+        </span>
+      </h1>
+
+      <p class="mt-8 text-base sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+        基于 Rust &amp; Tauri v2 打造的极致轻量跨平台剪切板管理器。毫秒级唤起、系统级全局快捷键、双栏深度预览与密码隐私防泄密，重塑您的跨端复制粘贴体验。
+      </p>
+
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a id="hero-download-btn" href="https://github.com/anmingxing/clip-flow/releases" target="_blank" class="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-base shadow-xl shadow-blue-500/25 transition flex items-center justify-center space-x-2 group">
+          <svg class="w-5 h-5 transition-transform group-hover:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span id="hero-download-text">立即下载 ClipFlow</span>
+          <span class="text-xs opacity-75 font-normal">(macOS / Windows / Linux)</span>
+        </a>
+
+        <a href="#shortcuts" class="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-semibold text-base transition flex items-center justify-center space-x-2">
+          <span>快捷键流：<kbd class="kbd-chip">⌥/Alt V</kbd> 呼出</span>
+        </a>
+      </div>
+
+      <!-- 快速信任标签 -->
+      <div class="mt-8 flex flex-wrap justify-center items-center gap-6 text-xs text-slate-400">
+        <span class="flex items-center space-x-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg> 100% 离线存储</span>
+        <span class="flex items-center space-x-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg> 密码保护防窃听</span>
+        <span class="flex items-center space-x-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg> 纯键盘全交互</span>
+        <span class="flex items-center space-x-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg> MIT 开源协议</span>
+      </div>
+    </div>
+
+    <!-- 产品 UI 仿真预览组件 (1:1 还原 ClipFlow 界面) -->
+    <div id="preview" class="max-w-5xl mx-auto px-6 mt-16">
+      <div class="relative mx-auto rounded-2xl p-2 bg-gradient-to-b from-white/15 to-white/5 shadow-2xl shadow-black/80 border border-white/15">
+        <div class="rounded-xl overflow-hidden glass-panel flex flex-col md:flex-row min-h-[480px] md:h-[480px] text-left">
+          
+          <!-- 左栏：搜索、分类与历史列表 -->
+          <div class="w-full md:w-[480px] flex flex-col border-b md:border-b-0 md:border-r border-white/10 bg-black/20">
+            <!-- 搜索框 -->
+            <div class="p-3.5 space-y-3">
+              <div class="flex items-center space-x-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 text-sm">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <span class="text-slate-400">搜索剪切板历史...</span>
+              </div>
+
+              <!-- 分类标签 -->
+              <div class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs whitespace-nowrap no-scrollbar">
+                <span class="px-2.5 py-1 rounded-full bg-appleBlue text-white font-medium flex items-center space-x-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg><span>全部</span></span>
+                <span class="px-2.5 py-1 rounded-full bg-white/5 text-slate-300 hover:bg-white/10 transition flex items-center space-x-1"><svg class="w-3 h-3 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"/></svg><span>已置顶</span></span>
+                <span class="px-2.5 py-1 rounded-full bg-white/5 text-slate-300 hover:bg-white/10 transition flex items-center space-x-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><span>文本</span></span>
+                <span class="px-2.5 py-1 rounded-full bg-white/5 text-slate-300 hover:bg-white/10 transition flex items-center space-x-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><span>图片</span></span>
+                <span class="px-2.5 py-1 rounded-full bg-white/5 text-slate-300 hover:bg-white/10 transition flex items-center space-x-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg><span>文件</span></span>
+                <span class="px-2.5 py-1 rounded-full bg-white/5 text-slate-300 hover:bg-white/10 transition flex items-center space-x-1"><svg class="w-3 h-3 text-purple-400" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v12H4V4z"/></svg><span>颜色</span></span>
+              </div>
+            </div>
+
+            <div class="h-px bg-white/10"></div>
+
+            <!-- 列表项 (模拟数据展示) -->
+            <div class="flex-1 overflow-y-auto p-2.5 space-y-1.5 text-xs font-normal">
+              
+              <!-- 选中项 (高亮) -->
+              <div class="p-2.5 rounded-xl bg-appleBlue text-white flex items-center justify-between shadow-md">
+                <div class="flex items-center space-x-3 overflow-hidden">
+                  <span class="kbd-chip bg-white/20 border-white/30 text-white">⌘1</span>
+                  <div class="w-7 h-7 rounded bg-white/20 flex items-center justify-center text-sm">📄</div>
+                  <div class="truncate">
+                    <div class="font-medium truncate flex items-center space-x-1">
+                      <span>{"status": "ok", "code": 200, "message": "Success"}</span>
+                      <span class="text-amber-300">📌</span>
+                    </div>
+                    <div class="text-[11px] text-white/80">Google Chrome · 64 字符 · 刚刚</div>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-1.5 text-white/90">
+                  <span title="已置顶">📌</span>
+                </div>
+              </div>
+
+              <!-- 第 2 项 -->
+              <div class="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] text-slate-200 flex items-center justify-between border border-transparent hover:border-white/5 transition">
+                <div class="flex items-center space-x-3 overflow-hidden">
+                  <span class="kbd-chip">⌘2</span>
+                  <div class="w-7 h-7 rounded bg-purple-500/20 text-purple-300 flex items-center justify-center text-xs font-mono font-bold">#</div>
+                  <div class="truncate">
+                    <div class="font-medium text-slate-200 truncate">#0A84FF (Apple System Blue)</div>
+                    <div class="text-[11px] text-slate-400">Figma · 色值 · 2 分钟前</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 第 3 项 -->
+              <div class="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] text-slate-200 flex items-center justify-between border border-transparent hover:border-white/5 transition">
+                <div class="flex items-center space-x-3 overflow-hidden">
+                  <span class="kbd-chip">⌘3</span>
+                  <div class="w-7 h-7 rounded bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-sm">🖼️</div>
+                  <div class="truncate">
+                    <div class="font-medium text-slate-200 truncate">ScreenShot_2026-11-13_1420.png</div>
+                    <div class="text-[11px] text-slate-400">截屏 · PNG 图像 (1920×1080) · 8 分钟前</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 第 4 项 -->
+              <div class="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] text-slate-200 flex items-center justify-between border border-transparent hover:border-white/5 transition">
+                <div class="flex items-center space-x-3 overflow-hidden">
+                  <span class="kbd-chip">⌘4</span>
+                  <div class="w-7 h-7 rounded bg-blue-500/20 text-blue-300 flex items-center justify-center text-sm">📁</div>
+                  <div class="truncate">
+                    <div class="font-medium text-slate-200 truncate">/Users/anmingxing/works/clip-flow</div>
+                    <div class="text-[11px] text-slate-400">Finder · 1 个文件路径 · 15 分钟前</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="h-px bg-white/10"></div>
+
+            <!-- 底部按键提示栏 (彻底锁定单行，绝不折断) -->
+            <div class="px-3 py-2 flex items-center justify-between text-slate-400 bg-black/30 whitespace-nowrap overflow-hidden">
+              <div class="flex items-center space-x-2 text-[10px] sm:text-[11px]">
+                <span class="inline-flex items-center space-x-1 whitespace-nowrap"><kbd class="kbd-chip">⏎</kbd><span>粘贴</span></span>
+                <span class="inline-flex items-center space-x-1 whitespace-nowrap"><kbd class="kbd-chip">⇧⏎</kbd><span>纯文本</span></span>
+                <span class="inline-flex items-center space-x-1 whitespace-nowrap"><kbd class="kbd-chip">Tab</kbd><span>标签</span></span>
+                <span class="inline-flex items-center space-x-1 whitespace-nowrap"><kbd class="kbd-chip">⌘P</kbd><span>置顶</span></span>
+                <span class="inline-flex items-center space-x-1 whitespace-nowrap"><kbd class="kbd-chip">⌘⌫</kbd><span>删除</span></span>
+                <span class="inline-flex items-center space-x-1 whitespace-nowrap"><kbd class="kbd-chip">Esc</kbd><span>退出</span></span>
+              </div>
+              <span class="text-[10px] text-slate-500 whitespace-nowrap pl-2">清空未置顶</span>
+            </div>
+          </div>
+
+          <!-- 右栏：选中文档的深度详情抽屉预览 -->
+          <div class="hidden md:flex flex-1 flex-col p-5 bg-black/40 overflow-hidden">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+              <div class="flex items-center space-x-2">
+                <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-mono font-medium">JSON</span>
+                <span class="text-xs text-slate-400">来自 Google Chrome</span>
+              </div>
+              <span class="text-xs text-slate-500">64 字符 · 3 行</span>
+            </div>
+
+            <!-- JSON 代码高亮模拟 -->
+            <div class="flex-1 mt-4 p-4 rounded-xl bg-black/50 border border-white/10 font-mono text-xs text-slate-300 overflow-auto leading-relaxed">
+<pre class="text-emerald-400">{
+  <span class="text-blue-300">"status"</span>: <span class="text-amber-300">"ok"</span>,
+  <span class="text-blue-300">"code"</span>: <span class="text-purple-300">200</span>,
+  <span class="text-blue-300">"message"</span>: <span class="text-amber-300">"Success"</span>,
+  <span class="text-blue-300">"timestamp"</span>: <span class="text-purple-300">1794552282</span>
+}</pre>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
+              <span>单击查看预览 · 双击执行粘贴</span>
+              <span class="text-slate-500 font-mono">SHA-256 排重生效</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 核心特性 Bento Grid -->
+  <section id="features" class="py-24 max-w-6xl mx-auto px-6">
+    <div class="text-center max-w-2xl mx-auto mb-16">
+      <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">为什么选择 ClipFlow？</h2>
+      <p class="mt-4 text-slate-400">摒弃臃肿的 Electron 包装，用 Rust 核心与系统原生 WebView 实现全平台极轻体积、闪电响应与优雅体验。</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- 特性 1 -->
+      <div class="p-8 rounded-3xl glass-panel border border-white/10 hover:border-blue-500/30 transition group">
+        <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+          ⚡️
+        </div>
+        <h3 class="text-xl font-bold text-white">Rust + Tauri v2 毫秒级响应</h3>
+        <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+          后端由 Rust 原生驱动，前端采用 React + Tailwind CSS 渲染于系统内置 WebView，告别 Electron 笨重内存开销，跨端依旧极速丝滑。
+        </p>
+      </div>
+
+      <!-- 特性 2 -->
+      <div class="p-8 rounded-3xl glass-panel border border-white/10 hover:border-purple-500/30 transition group">
+        <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+          ⌨️
+        </div>
+        <h3 class="text-xl font-bold text-white">系统级全局热键</h3>
+        <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+          基于系统原生热键接口注册，跨平台支持 <kbd class="kbd-chip">⌥/Alt + V</kbd> 与 <kbd class="kbd-chip">⌘/Ctrl + ⇧ + V</kbd>。无需记录击键输入，任何桌面场景下始终秒级响应。
+        </p>
+      </div>
+
+      <!-- 特性 3 -->
+      <div class="p-8 rounded-3xl glass-panel border border-white/10 hover:border-emerald-500/30 transition group">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+          🛡️
+        </div>
+        <h3 class="text-xl font-bold text-white">密码管理器防泄密</h3>
+        <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+          同时遵守 macOS <code class="text-emerald-300 font-mono text-xs">ConcealedType</code> 与 Windows <code class="text-emerald-300 font-mono text-xs">ExcludeClipboardContentFromMonitorProcessing</code> 隐私标记，并自动过滤 1Password、Bitwarden、KeePassXC 等密码软件。
+        </p>
+      </div>
+
+      <!-- 特性 4 -->
+      <div class="p-8 rounded-3xl glass-panel border border-white/10 hover:border-amber-500/30 transition group">
+        <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+          🎨
+        </div>
+        <h3 class="text-xl font-bold text-white">多格式深度预览抽屉</h3>
+        <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+          独创右侧详情预览面板：超长文本排版、JSON 自动检测与格式化、网址智能提取一键打开、色值 Hex/RGB 实时色卡、大图缩略及文件路径全景呈现。
+        </p>
+      </div>
+
+      <!-- 特性 5 -->
+      <div class="p-8 rounded-3xl glass-panel border border-white/10 hover:border-cyan-500/30 transition group">
+        <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+          🚀
+        </div>
+        <h3 class="text-xl font-bold text-white">全键盘直达交互流</h3>
+        <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+          手不离键盘即可完成所有操作：自动对焦输入框、<kbd class="kbd-chip">Tab</kbd> 循环切标签、<kbd class="kbd-chip">⌘/Ctrl+1~9</kbd> 瞬时粘贴、<kbd class="kbd-chip">⇧⏎</kbd> 强制纯文本回填。
+        </p>
+      </div>
+
+      <!-- 特性 6 -->
+      <div class="p-8 rounded-3xl glass-panel border border-white/10 hover:border-rose-500/30 transition group">
+        <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition-transform">
+          💎
+        </div>
+        <h3 class="text-xl font-bold text-white">跨平台开机自启与托盘常驻</h3>
+        <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+          深度整合 macOS 顶部菜单栏（Accessory 无 Dock 模式）、Windows 系统托盘与 Linux 状态栏，托盘右键一键启闭开机自启与统计清理。
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 快捷键指南 Section -->
+  <section id="shortcuts" class="py-20 bg-black/30 border-y border-white/5">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center max-w-xl mx-auto mb-14">
+        <h2 class="text-3xl font-bold text-white">极速键盘流，效率翻倍</h2>
+        <p class="mt-3 text-slate-400">专为程序员、产品经理与高频文字工作者设计的全键盘逻辑。</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+          <div class="text-sm font-semibold text-white">全局呼出浮窗</div>
+          <div class="my-3 flex items-center space-x-1">
+            <kbd class="kbd-chip text-sm px-2 py-1">⌥ / Alt</kbd>
+            <span class="text-slate-500">+</span>
+            <kbd class="kbd-chip text-sm px-2 py-1">V</kbd>
+          </div>
+          <p class="text-xs text-slate-400">备用：<kbd class="kbd-chip">⌘/Ctrl ⇧ V</kbd></p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+          <div class="text-sm font-semibold text-white">直接粘贴 / 纯文本</div>
+          <div class="my-3 flex items-center space-x-1">
+            <kbd class="kbd-chip text-sm px-2 py-1">⏎ 回车</kbd>
+            <span class="text-slate-500">/</span>
+            <kbd class="kbd-chip text-sm px-2 py-1">⇧ ⏎</kbd>
+          </div>
+          <p class="text-xs text-slate-400">⇧⏎ 自动剥离样式作为纯文本回填</p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+          <div class="text-sm font-semibold text-white">切换分类标签</div>
+          <div class="my-3 flex items-center space-x-1">
+            <kbd class="kbd-chip text-sm px-2 py-1">Tab</kbd>
+            <span class="text-slate-500">/</span>
+            <kbd class="kbd-chip text-sm px-2 py-1">⇧ Tab</kbd>
+          </div>
+          <p class="text-xs text-slate-400">在全部、已置顶、文本、图片间循环</p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+          <div class="text-sm font-semibold text-white">快速序号直达</div>
+          <div class="my-3 flex items-center space-x-1">
+            <kbd class="kbd-chip text-sm px-2 py-1">⌘ / Ctrl</kbd>
+            <span class="text-slate-500">+</span>
+            <kbd class="kbd-chip text-sm px-2 py-1">1 ~ 9</kbd>
+          </div>
+          <p class="text-xs text-slate-400">光标无需移动，秒级回填对应历史</p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+          <div class="text-sm font-semibold text-white">置顶 / 取消置顶</div>
+          <div class="my-3 flex items-center space-x-1">
+            <kbd class="kbd-chip text-sm px-2 py-1">⌘ / Ctrl</kbd>
+            <span class="text-slate-500">+</span>
+            <kbd class="kbd-chip text-sm px-2 py-1">P</kbd>
+          </div>
+          <p class="text-xs text-slate-400">常用密码/代码模板一键锁定顶端</p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+          <div class="text-sm font-semibold text-white">删除单条历史</div>
+          <div class="my-3 flex items-center space-x-1">
+            <kbd class="kbd-chip text-sm px-2 py-1">⌘ / Ctrl</kbd>
+            <span class="text-slate-500">+</span>
+            <kbd class="kbd-chip text-sm px-2 py-1">⌫ 退格</kbd>
+          </div>
+          <p class="text-xs text-slate-400">安全抹除指定的剪切板记录</p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+          <div class="text-sm font-semibold text-white">智能 Esc 关闭</div>
+          <div class="my-3 flex items-center space-x-1">
+            <kbd class="kbd-chip text-sm px-2 py-1">Esc</kbd>
+          </div>
+          <p class="text-xs text-slate-400">搜索中有词则先清空，无词则收起</p>
+        </div>
+
+        <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col justify-between">
+          <div class="text-sm font-semibold text-white">鼠标交互逻辑</div>
+          <div class="my-3 flex items-center space-x-2 text-xs text-slate-300">
+            <span class="px-2 py-1 rounded bg-white/5 border border-white/10">单击：预览</span>
+            <span class="px-2 py-1 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">双击：粘贴</span>
+          </div>
+          <p class="text-xs text-slate-400">单击查看长内容，双击瞬间回填</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- 开发者命令行一键构建 -->
+  <section class="py-16 max-w-4xl mx-auto px-6 text-center">
+    <div class="p-6 rounded-2xl glass-panel border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
+      <div class="space-y-1">
+        <div class="text-sm font-semibold text-white flex items-center space-x-2">
+          <span>💻 开发者？直接在终端编译运行</span>
+        </div>
+        <p class="text-xs text-slate-400">仅需几步命令，Rust + Tauri v2 跨平台工程一秒就绪：</p>
+      </div>
+
+      <div class="flex items-center space-x-2 w-full sm:w-auto">
+        <div class="bg-black/60 border border-white/10 rounded-xl px-4 py-2.5 font-mono text-xs text-slate-300 flex-1 sm:flex-initial overflow-x-auto whitespace-nowrap">
+          npm install &amp;&amp; npm run tauri build
+        </div>
+        <button onclick="navigator.clipboard.writeText('git clone https://github.com/anmingxing/clip-flow.git && cd clip-flow && npm install && npm run tauri build'); this.innerText='已复制!';" class="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-medium text-white transition whitespace-nowrap">
+          复制命令
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 常见问题 FAQ Section -->
+  <section id="faq" class="py-20 max-w-4xl mx-auto px-6">
+    <div class="text-center max-w-xl mx-auto mb-14">
+      <h2 class="text-3xl font-bold text-white">常见问题与解答</h2>
+      <p class="mt-3 text-slate-400">解答您对跨平台支持、系统权限与隐私安全的疑问。</p>
+    </div>
+
+    <div class="space-y-4">
+      
+      <div class="p-6 rounded-2xl glass-panel border border-white/10 text-left">
+        <h3 class="text-base font-semibold text-white">Q1: 为什么 ClipFlow 不需要「输入监控 (Input Monitoring)」权限？</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+          市面上许多剪切板工具通过全局键盘 Hook 监听按键，需要用户授予危险的“记录所有击键输入”权限。ClipFlow 通过 Tauri 全局快捷键插件直接调用各操作系统原生的热键注册接口，免去了敏感的击键监听权限，也不会被前台应用程序轻易拦截。
+        </p>
+      </div>
+
+      <div class="p-6 rounded-2xl glass-panel border border-white/10 text-left">
+        <h3 class="text-base font-semibold text-white">Q2: macOS 下为什么需要「辅助功能 (Accessibility)」权限？Windows / Linux 需要吗？</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+          当您在列表中双击或按下回车时，ClipFlow 需要将焦点自动交还给您刚才正在工作的软件，并向该前台窗口模拟发送一次粘贴组合键（macOS 为 <kbd class="kbd-chip">Cmd + V</kbd>，Windows / Linux 为 <kbd class="kbd-chip">Ctrl + V</kbd>）。macOS 端仅该自动化粘贴步骤需要辅助功能权限；Windows 端通过原生 <code class="text-blue-300 font-mono text-xs">SendInput</code> 开箱即用；Linux (X11) 端仅需确保系统已安装 <code class="text-blue-300 font-mono text-xs">xdotool</code>。
+        </p>
+      </div>
+
+      <div class="p-6 rounded-2xl glass-panel border border-white/10 text-left">
+        <h3 class="text-base font-semibold text-white">Q3: 复制 1Password / Bitwarden / KeePassXC 密码时会泄露吗？</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+          绝对不会。ClipFlow 在 Rust 监听循环中深度集成了隐私过滤规则，同时遵守 macOS 的 <code class="text-blue-300 font-mono text-xs">org.nspasteboard.ConcealedType</code> / <code class="text-blue-300 font-mono text-xs">AutoGeneratedType</code> 与 Windows 的 <code class="text-blue-300 font-mono text-xs">ExcludeClipboardContentFromMonitorProcessing</code> 规范，并识别常见密码管理器来源，所有受保护口令均被静默跳过。
+        </p>
+      </div>
+
+      <div class="p-6 rounded-2xl glass-panel border border-white/10 text-left">
+        <h3 class="text-base font-semibold text-white">Q4: 如何开启或关闭开机自启动？</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+          右键点击系统托盘（macOS 顶部菜单栏 / Windows 右下角托盘 / Linux 状态栏）中的 ClipFlow 图标，在弹出的菜单中直接勾选或取消「开机自动启动」即可，底层基于 Tauri 原生 <code class="text-blue-300 font-mono text-xs">autostart</code> 插件实现。
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 隐私与安全承诺 Section -->
+  <section id="privacy" class="py-20 max-w-4xl mx-auto px-6 text-center">
+    <div class="w-16 h-16 mx-auto rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl mb-6">
+      🔒
+    </div>
+    <h2 class="text-3xl font-bold text-white">100% 离线，数据只属于您</h2>
+    <p class="mt-4 text-slate-300 leading-relaxed">
+      剪切板记录着您的个人信息、代码片段甚至是敏感数据。ClipFlow 恪守严格的开源与本地化原则：
+    </p>
+
+    <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+      <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+        <div class="font-bold text-white mb-2">🚫 零云端上传</div>
+        <p class="text-xs text-slate-400 leading-normal">没有后台云端服务器，没有任何数据埋点或分析上报代码，纯净可靠。</p>
+      </div>
+
+      <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+        <div class="font-bold text-white mb-2">💾 本地目录持久化</div>
+        <p class="text-xs text-slate-400 leading-normal">数据仅存储于本机应用目录（macOS ~/Library/Application Support/clip-flow、Windows %APPDATA%\clip-flow、Linux ~/.local/share/clip-flow），明文可审计。</p>
+      </div>
+
+      <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+        <div class="font-bold text-white mb-2">📖 源码全透明公开</div>
+        <p class="text-xs text-slate-400 leading-normal">项目代码在 GitHub 完全开源，欢迎每一位开发者监督与共同维护构建。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Download Section -->
+  <section class="py-20 relative overflow-hidden">
+    <div class="max-w-4xl mx-auto px-6 text-center glass-panel rounded-3xl p-12 border border-white/15 shadow-2xl relative z-10">
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-white">即刻开始掌控您的剪切历史</h2>
+      <p class="mt-4 text-slate-300 max-w-xl mx-auto text-sm sm:text-base">
+        无需繁琐配置，下载对应系统安装包即可开启轻量流畅的跨平台剪切管理体验。
+      </p>
+
+      <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a id="cta-download-btn" href="https://github.com/anmingxing/clip-flow/releases" target="_blank" class="px-8 py-3.5 rounded-2xl bg-appleBlue hover:bg-blue-600 text-white font-semibold text-base shadow-xl shadow-blue-500/25 transition flex items-center space-x-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span id="cta-download-text">下载 ClipFlow 全平台版</span>
+        </a>
+
+        <a href="https://github.com/anmingxing/clip-flow" target="_blank" class="px-6 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-medium text-base transition flex items-center space-x-2">
+          <span>查看 GitHub 源码</span>
+        </a>
+      </div>
+
+      <div class="mt-6 text-xs text-slate-500">
+        支持 macOS 13+ (Apple Silicon &amp; Intel .dmg) · Windows (x64 .msi / .exe) · Linux (.AppImage / .deb)
+      </div>
+    </div>
+  </section>
+
+  <!-- 页脚 Footer -->
+  <footer class="border-t border-white/10 py-10 text-xs text-slate-500 text-center">
+    <div class="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-2">
+        <span class="text-slate-300 font-semibold">ClipFlow</span>
+        <span>· Designed & Built with ❤️ by 安明兴</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <a href="https://github.com/anmingxing/clip-flow" target="_blank" class="hover:text-slate-400 transition">GitHub 仓库</a>
+        <span>·</span>
+        <a href="https://github.com/anmingxing/clip-flow/releases" target="_blank" class="hover:text-slate-400 transition">更新日志</a>
+        <span>·</span>
+        <a href="https://github.com/anmingxing/clip-flow/blob/main/LICENSE" target="_blank" class="underline hover:text-slate-400 transition">MIT License</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 动态版本号检测脚本 (自动拉取 GitHub 最新版本) -->
+  <script>
+    (async function() {
+      try {
+        const res = await fetch('https://api.github.com/repos/anmingxing/clip-flow/releases/latest');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.tag_name) {
+            const tag = data.tag_name;
+            const badge = document.getElementById('hero-badge-version');
+            if (badge) badge.innerText = `ClipFlow ${tag} · 跨平台正式版已发布`;
+            const heroBtnText = document.getElementById('hero-download-text');
+            if (heroBtnText) heroBtnText.innerText = `立即下载 ClipFlow ${tag}`;
+            const navBtnText = document.getElementById('nav-download-text');
+            if (navBtnText) navBtnText.innerText = `下载 ${tag}`;
+            const ctaBtnText = document.getElementById('cta-download-text');
+            if (ctaBtnText) ctaBtnText.innerText = `下载 ClipFlow ${tag}`;
+          }
+        }
+      } catch (e) {
+        // 离线或 API 限流时静默使用默认文案
+      }
+    })();
+  </script>
+
+</body>
+</html>
